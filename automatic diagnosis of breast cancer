@@ -1,0 +1,98 @@
+ pip install pillow
+Requirement already satisfied: pillow in c:\users\administrator\desktop\pyver\py312\lib\site-packages (11.3.0)
+Note: you may need to restart the kernel to use updated packages.
+[notice] A new release of pip is available: 25.2 -> 25.3
+[notice] To update, run: python.exe -m pip install --upgrade pip
+# 1. IMPORT LIBRARIES
+# ---------------------------
+import zipfile
+import os
+from PIL import Image       
+from io import BytesIO
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, classification_report
+# ---------------------------
+# 2. ZIP FILE PATH
+# ---------------------------
+zip_path = r"iuss-23-24-automatic-diagnosis-breast-cancer.zip" 
+# ---------------------------
+# 3. LOAD IMAGES DIRECTLY FROM ZIP
+# ---------------------------
+def load_images_from_zip(zip_path):
+    X, y, filenames = [], [], []
+    with zipfile.ZipFile(zip_path, 'r') as z:
+        for file in z.namelist():
+            if file.endswith(".jpg") or file.endswith(".png"):
+                # Determine label from path
+                label = "benign" if "/benign/" in file else "malignant"
+                img_data = z.read(file)
+                img = Image.open(BytesIO(img_data)).convert('L')  # convert to grayscale
+                img = img.resize((64,64))                          # resize
+                X.append(np.array(img).flatten())                  # flatten
+                y.append(label)
+                filenames.append(os.path.basename(file))
+    return np.array(X), np.array(y), filenames
+# ---------------------------
+# 4. LOAD DATA
+# ---------------------------
+X, y, train_files = load_images_from_zip(zip_path)
+# ---------------------------
+# 5. TRAIN / VALIDATION SPLIT
+# ---------------------------
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+# ---------------------------
+# 6. TRAIN RANDOM FOREST
+# ---------------------------
+rf = RandomForestClassifier(n_estimators=200, random_state=42)
+rf.fit(X_train, y_train)
+
+RandomForestClassifier
+?i
+Parameters
+# ---------------------------
+# 7. EVALUATE
+# ---------------------------
+y_pred = rf.predict(X_val)
+print("Accuracy:", accuracy_score(y_val, y_pred))
+print("F1 Score:", f1_score(y_val, y_pred, average="weighted"))
+print(classification_report(y_val, y_pred))
+Accuracy: 0.911340206185567
+F1 Score: 0.9090047520049577
+              precision    recall  f1-score   support
+
+      benign       0.90      0.97      0.94       332
+   malignant       0.93      0.78      0.85       153
+
+    accuracy                           0.91       485
+   macro avg       0.92      0.88      0.89       485
+weighted avg       0.91      0.91      0.91       485
+
+# ---------------------------
+# 8. GENERATE CSV (100 ROWS)
+# ---------------------------
+output_df = pd.DataFrame({
+    "image_name": train_files[:100],
+    "prediction": y_pred[:100]
+})
+output_df.to_csv("predictions_100.csv", index=False)
+print("CSV saved as 'predictions_100.csv'")
+CSV saved as 'predictions_100.csv'
+# Load the CSV
+df = pd.read_csv("predictions_100.csv")
+
+# Display the first 10 rows
+df.head(10)
+image_name	prediction
+0	P001.png	benign
+1	P001_mask.png	benign
+2	P002.png	benign
+3	P002_mask.png	benign
+4	P003.png	benign
+5	P003_mask.png	malignant
+6	P004.png	benign
+7	P004_mask.png	benign
+8	P005.png	benign
+9	P005_mask.png	benign
